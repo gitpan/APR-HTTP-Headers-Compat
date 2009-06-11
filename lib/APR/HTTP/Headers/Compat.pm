@@ -14,11 +14,11 @@ APR::HTTP::Headers::Compat - Make an APR::Table look like an HTTP::Headers
 
 =head1 VERSION
 
-This document describes APR::HTTP::Headers::Compat version 0.01
+This document describes APR::HTTP::Headers::Compat version 0.02
 
 =cut
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 =head1 SYNOPSIS
 
@@ -37,6 +37,10 @@ Sometimes you will encounter code (such as L<FirePHP::Dispatcher>) that
 needs an L<HTTP::Headers>. This module wraps an C<APR::Table> in a
 subclass of C<HTTP::Headers> so that it can be used wherever an
 C<HTTP::Headers> is expected.
+
+Synchronisation is bi-directional; changes via the C<HTTP::Headers>
+interface are reflected immediately in the underlying C<APR::Table> and
+direct changes to the table show up immediately in the wrapper.
 
 =head1 INTERFACE 
 
@@ -73,7 +77,8 @@ sub _magic { tied %{ shift() } }
 
 =head2 C<< clone >>
 
-Clone this object. The clone is a regular L<HTTP::Headers> object.
+Clone this object. The clone is a regular L<HTTP::Headers> object rather
+than an C<APR::HTTP::Headers::Compat>.
 
 =cut
 
@@ -81,7 +86,8 @@ sub clone { bless { %{ shift() } }, 'HTTP::Headers' }
 
 =head2 C<< table >>
 
-Get the underlying L<APR::Table> object.
+Get the underlying L<APR::Table> object. Changes made in either the
+table or the wrapper are reflected immediately in the other.
 
 =cut
 
@@ -94,8 +100,8 @@ message. All header field names prefixed with Content- falls into this
 category, as well as Allow, Expires and Last-Modified. RFC 2616 denote
 these fields as Entity Header Fields.
 
-The return value is a new HTTP::Headers object that contains the removed
-headers only. Note that the returned object is I<not> an
+The return value is a new C<HTTP::Headers> object that contains the
+removed headers only. Note that the returned object is I<not> an
 C<APR::HTTP::Headers::Compat>.
 
 =cut
@@ -116,7 +122,8 @@ sub remove_content_headers {
 
   my $class = ref $self;
   bless $self, 'HTTP::Headers';
-  $DB::single = 1;
+  
+  # Calls SUPER::remove_content_headers due to rebless
   my $other = $self->remove_content_headers( @_ );
   bless $self, $class;
 
@@ -132,6 +139,9 @@ __END__
 Because the underlying storage for the headers is an C<APR::Table>
 attempts to store an object (such as a L<URI> instance) in the table
 will not behave as expected.
+
+I haven't benchmarked but it's certain that this implementation will be
+substantially slower than C<HTTP::Headers>.
 
 =head1 DEPENDENCIES
 
